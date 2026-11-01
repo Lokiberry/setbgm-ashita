@@ -7,21 +7,22 @@ implementation inspired by [svanheulen/setbgm-windower-addon](https://github.com
 
 - **In-game GUI:** Browse and change background music from an ImGui window, (or use chat commands, but this addon was developed with GUI in mind).
 
-<img width="648" height="825" alt="image" src="https://github.com/user-attachments/assets/0b678d08-8e4e-44e3-b566-c460f32e7fe2" /> 
+<img width="588" height="680" alt="image" src="https://github.com/user-attachments/assets/61982665-a91e-4e78-bfaf-39406f35186c" />
   
 - **Expansion categories:** Filter the song catalog by soundtrack release or the dedicated **Battle** category.
 
-<img width="556" height="227" alt="image" src="https://github.com/user-attachments/assets/2b96f432-b38e-4396-9333-27ef3c8d28c1" />
+<img width="578" height="223" alt="image" src="https://github.com/user-attachments/assets/aafd23f8-9ef4-4cf2-97ce-eca8c0dcca32" />
 
 - **Favourites:** Save favourite tracks and filter the catalog to show only those songs.
 - **Song usage details:** See where tracks are used, search by those uses, and hover over multi-use entries to view the full list.
 - **Song Replacer:** Map one song ID to another so the replacement plays whenever the original track is used. Mappings persist, and each has an **Update** button to reapply it in the current zone.
 
-<img width="932" height="566" alt="image" src="https://github.com/user-attachments/assets/5769bbd5-f2fc-4897-a939-9280474d0201" />
+<img width="749" height="686" alt="image" src="https://github.com/user-attachments/assets/4cd6d461-c2d5-42d8-8fe0-d1391206e769" />
 
 - **Zone Replacer:** Assign a song to a specific zone, including zones with no default theme, such as Zeruhn Mines. Assignments persist and apply on zone entry.
 
-<img width="932" height="568" alt="image" src="https://github.com/user-attachments/assets/56ae496b-9553-4545-b247-736b8a7a262c" />
+<img width="751" height="688" alt="image" src="https://github.com/user-attachments/assets/09c917bf-ae53-45d4-9148-dc8ab45af270" />
+
 
 ## Install
 Copy this folder to `<Ashita>/addons/setbgm/`, so you have:
