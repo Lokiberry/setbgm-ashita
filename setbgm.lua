@@ -155,6 +155,16 @@ local pending_song = {}       -- [type] = song to re-apply
 local current_zone_theme = nil
 local MUTE_SONG_ID = 0
 local FISHING_THEME_ID = 129 -- Hook, Line and Sinker
+local fishing_message_offsets = {
+    [6578] = true, [6682] = true, [6737] = true, [6926] = true, [6950] = true,
+    [7069] = true, [7073] = true, [7089] = true, [7093] = true, [7095] = true,
+    [7099] = true, [7100] = true, [7108] = true, [7125] = true, [7170] = true,
+    [7232] = true, [7236] = true, [7242] = true, [7243] = true, [7252] = true,
+    [7254] = true, [7256] = true, [7260] = true, [7262] = true, [7277] = true,
+    [7278] = true, [7288] = true, [7294] = true, [7379] = true, [7386] = true,
+    [7390] = true, [7574] = true, [7575] = true, [7592] = true, [7605] = true,
+    [7728] = true, [7754] = true, [8031] = true, [10281] = true, [11615] = true,
+}
 
 -- Packet injection ---------------------------------------------------------
 
@@ -182,15 +192,6 @@ local function set_music(mtype, song)
                         mtype % 256, math.floor(mtype / 256),
                         song % 256, math.floor(song / 256) })
     if not ok then recent[mtype][song] = nil end
-    return ok
-end
-
-local function apply_fishing_music_replacement()
-    if replacement_for(FISHING_THEME_ID) == FISHING_THEME_ID then return false end
-    local ok = set_music(7, FISHING_THEME_ID)
-    if debug_log then
-        print(('[setbgm] preloaded fishing music replacement %d'):format(replacement_for(FISHING_THEME_ID)))
-    end
     return ok
 end
 
@@ -517,7 +518,6 @@ local function draw_replacer_tab()
             cfg.replacements[from] = to
             settings.save()
             apply_zone_replacements(current_zone(), true)
-            if from == FISHING_THEME_ID then apply_fishing_music_replacement() end
         end
     end
     imgui.Separator()
@@ -636,10 +636,6 @@ local function show_help()
     end
 end
 
-ashita.events.register('load', 'setbgm_load', function()
-    apply_fishing_music_replacement()
-end)
-
 ashita.events.register('command', 'setbgm_command', function(e)
     local args = e.command:args()
     if #args == 0 or args[1]:lower() ~= '/setbgm' then return end
@@ -685,6 +681,20 @@ ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
             local message = (e.data:byte(11) + e.data:byte(12) * 256) % 0x8000
             local msg_type = e.data:byte(13)
             print(('[setbgm] 0x036 talknum: actor=%u message=%u type=%u'):format(actor, message, msg_type))
+        end
+        local is_fish_hook = false
+        for offset in pairs(fishing_message_offsets) do
+            if message == offset + 0x08 or message == offset + 0x32 then
+                is_fish_hook = true
+                break
+            end
+        end
+        if is_fish_hook and replacement_for(FISHING_THEME_ID) ~= FISHING_THEME_ID then
+            pending[7] = os.clock() + 0.1
+            pending_song[7] = FISHING_THEME_ID
+            if debug_log then
+                print(('[setbgm] fishing hook message %u detected; applying song %u'):format(message, replacement_for(FISHING_THEME_ID)))
+            end
         end
     elseif e.id == 0x05F then
         local t    = e.data:byte(5) + e.data:byte(6) * 256
@@ -770,10 +780,6 @@ ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
             end
         end
         current_zone_theme = zone_theme
-        if replacement_for(FISHING_THEME_ID) ~= FISHING_THEME_ID then
-            pending[7] = os.clock() + 1.0
-            pending_song[7] = FISHING_THEME_ID
-        end
     end
 end)
 
