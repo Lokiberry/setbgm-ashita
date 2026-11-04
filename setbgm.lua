@@ -154,6 +154,7 @@ local pending = {}            -- [type] = re-apply time
 local pending_song = {}       -- [type] = song to re-apply
 local current_zone_theme = nil
 local MUTE_SONG_ID = 0
+local FISHING_THEME_ID = 129 -- Hook, Line and Sinker
 
 -- Packet injection ---------------------------------------------------------
 
@@ -181,6 +182,15 @@ local function set_music(mtype, song)
                         mtype % 256, math.floor(mtype / 256),
                         song % 256, math.floor(song / 256) })
     if not ok then recent[mtype][song] = nil end
+    return ok
+end
+
+local function apply_fishing_music_replacement()
+    if replacement_for(FISHING_THEME_ID) == FISHING_THEME_ID then return false end
+    local ok = set_music(7, FISHING_THEME_ID)
+    if debug_log then
+        print(('[setbgm] preloaded fishing music replacement %d'):format(replacement_for(FISHING_THEME_ID)))
+    end
     return ok
 end
 
@@ -302,6 +312,10 @@ local function force_song_replacement(from, to)
     local zone = current_zone()
     local row = zone and zonemusic[zone]
     local applied = false
+    if from == FISHING_THEME_ID then
+        set_music(7, to)
+        applied = true
+    end
     for t = 0, 7 do
         local matches = server_song[t] == from or (t <= 3 and row ~= nil and row[t + 1] == from)
         if matches and not (t < 2 and zone_override_for(zone) ~= nil) then
@@ -503,6 +517,7 @@ local function draw_replacer_tab()
             cfg.replacements[from] = to
             settings.save()
             apply_zone_replacements(current_zone(), true)
+            if from == FISHING_THEME_ID then apply_fishing_music_replacement() end
         end
     end
     imgui.Separator()
@@ -517,6 +532,7 @@ local function draw_replacer_tab()
             cfg.replacements[from] = nil
             cfg.replacements[tostring(from)] = nil
             settings.save()
+            if from == FISHING_THEME_ID then set_music(7, FISHING_THEME_ID) end
             restore_zone_song(from, tonumber(to))
         end
         imgui.SameLine()
@@ -619,6 +635,10 @@ local function show_help()
         print(('[setbgm]   %s - %s'):format(h[1], h[2]))
     end
 end
+
+ashita.events.register('load', 'setbgm_load', function()
+    apply_fishing_music_replacement()
+end)
 
 ashita.events.register('command', 'setbgm_command', function(e)
     local args = e.command:args()
@@ -743,6 +763,10 @@ ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
             end
         end
         current_zone_theme = zone_theme
+        if replacement_for(FISHING_THEME_ID) ~= FISHING_THEME_ID then
+            pending[7] = os.clock() + 1.0
+            pending_song[7] = FISHING_THEME_ID
+        end
     end
 end)
 
