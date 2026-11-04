@@ -155,6 +155,7 @@ local pending_song = {}       -- [type] = song to re-apply
 local current_zone_theme = nil
 local MUTE_SONG_ID = 0
 local FISHING_THEME_ID = 129 -- Hook, Line and Sinker
+local FISHING_MONSTER_THEME_ID = 136 -- The Big One
 local fishing_message_offsets = {
     [6578] = true, [6682] = true, [6737] = true, [6926] = true, [6950] = true,
     [7069] = true, [7073] = true, [7089] = true, [7093] = true, [7095] = true,
@@ -313,7 +314,7 @@ local function force_song_replacement(from, to)
     local zone = current_zone()
     local row = zone and zonemusic[zone]
     local applied = false
-    if from == FISHING_THEME_ID then
+    if from == FISHING_THEME_ID or from == FISHING_MONSTER_THEME_ID then
         set_music(7, to)
         applied = true
     end
@@ -532,7 +533,7 @@ local function draw_replacer_tab()
             cfg.replacements[from] = nil
             cfg.replacements[tostring(from)] = nil
             settings.save()
-            if from == FISHING_THEME_ID then set_music(7, FISHING_THEME_ID) end
+            if from == FISHING_THEME_ID or from == FISHING_MONSTER_THEME_ID then set_music(7, from) end
             restore_zone_song(from, tonumber(to))
         end
         imgui.SameLine()
@@ -682,18 +683,21 @@ ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
         if debug_log then
             print(('[setbgm] 0x036 talknum: actor=%u message=%u type=%u'):format(actor, message, msg_type))
         end
-        local is_fish_hook = false
+        local fishing_theme = nil
         for offset in pairs(fishing_message_offsets) do
-            if message == offset + 0x08 or message == offset + 0x32 then
-                is_fish_hook = true
+            if message == offset + 0x08 or message == offset + 0x32 or message == offset + 0x33 then
+                fishing_theme = FISHING_THEME_ID
+                break
+            elseif message == offset + 0x34 then
+                fishing_theme = FISHING_MONSTER_THEME_ID
                 break
             end
         end
-        if is_fish_hook and replacement_for(FISHING_THEME_ID) ~= FISHING_THEME_ID then
+        if fishing_theme ~= nil and replacement_for(fishing_theme) ~= fishing_theme then
             pending[7] = os.clock() + 0.1
-            pending_song[7] = FISHING_THEME_ID
+            pending_song[7] = fishing_theme
             if debug_log then
-                print(('[setbgm] fishing hook message %u detected; applying song %u'):format(message, replacement_for(FISHING_THEME_ID)))
+                print(('[setbgm] fishing hook message %u detected; applying song %u'):format(message, replacement_for(fishing_theme)))
             end
         end
     elseif e.id == 0x05F then
