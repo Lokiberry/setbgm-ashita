@@ -371,7 +371,7 @@ local function mute(mtype)
     apply(MUTE_SONG_ID, mtype, true)
 end
 
-local function set_battle_to_zone_theme()
+local function current_zone_idle_song()
     local song = current_zone_theme or server_song[0] or server_song[1]
     if song == nil or song == 0 then
         local zone = current_zone()
@@ -381,6 +381,11 @@ local function set_battle_to_zone_theme()
             if song == nil or song == 0 then song = row[2] end
         end
     end
+    return song
+end
+
+local function set_battle_to_zone_theme()
+    local song = current_zone_idle_song()
     if song == nil or song == 0 then
         print(('[setbgm] no idle music found for zone %s'):format(tostring(current_zone())))
         return
@@ -394,6 +399,19 @@ local function set_battle_to_zone_theme()
     end
     settings.save()
     report(ok, song_name(song))
+end
+
+local function set_fishing_to_zone_theme()
+    local song = current_zone_idle_song()
+    if song == nil or song == 0 then
+        print(('[setbgm] no idle music found for zone %s'):format(tostring(current_zone())))
+        return
+    end
+
+    cfg.replacements[FISHING_THEME_ID] = song
+    cfg.replacements[FISHING_MONSTER_THEME_ID] = song
+    settings.save()
+    print(('[setbgm] both fishing themes will use %s'):format(song_name(song)))
 end
 
 local function reset()
@@ -822,6 +840,10 @@ ashita.events.register('d3d_present', 'setbgm_present', function()
         if imgui.Button('Set Battle Music to Current Zone Theme') then set_battle_to_zone_theme() end
         if imgui.IsItemHovered() then
             imgui.SetTooltip('Copies the current zone idle song to both solo and party battle music.')
+        end
+        if imgui.Button('Set Fishing Music to Current Zone Theme') then set_fishing_to_zone_theme() end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Sets both fish/item and monster fishing tracks to the current zone theme.')
         end
 
         imgui.SameLine()
