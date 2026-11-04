@@ -17,7 +17,7 @@ Commands (addon was made with GUI usage in mind):
 addon.name     = 'setbgm'
 addon.author   = 'Zibios'
 addon.link     = 'https://github.com/danijrubio/setbgm-ashita'
-addon.version  = '1.0'
+addon.version  = '1.1'
 addon.desc     = 'Set background music with a UI'
 addon.commands = { '/setbgm' }
 
