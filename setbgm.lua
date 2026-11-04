@@ -679,7 +679,14 @@ ashita.events.register('command', 'setbgm_command', function(e)
 end)
 
 ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
-    if e.id == 0x05F then
+    if e.id == 0x036 then
+        if debug_log and e.data:length() >= 13 then
+            local actor = e.data:byte(5) + e.data:byte(6) * 256 + e.data:byte(7) * 65536 + e.data:byte(8) * 16777216
+            local message = (e.data:byte(11) + e.data:byte(12) * 256) % 0x8000
+            local msg_type = e.data:byte(13)
+            print(('[setbgm] 0x036 talknum: actor=%u message=%u type=%u'):format(actor, message, msg_type))
+        end
+    elseif e.id == 0x05F then
         local t    = e.data:byte(5) + e.data:byte(6) * 256
         local song = e.data:byte(7) + e.data:byte(8) * 256
         local mine = (recent[t] ~= nil and recent[t][song] ~= nil and os.clock() < recent[t][song])
