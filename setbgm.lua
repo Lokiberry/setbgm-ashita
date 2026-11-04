@@ -22,6 +22,7 @@ addon.desc     = 'Set background music with a UI'
 addon.commands = { '/setbgm' }
 
 require('common')
+local ffi = require('ffi')
 local imgui    = require('imgui')
 local settings = require('settings')
 local data     = require('songs')
@@ -152,7 +153,6 @@ end
 local pending = {}            -- [type] = re-apply time
 local pending_song = {}       -- [type] = song to re-apply
 local current_zone_theme = nil
-local zone_replacer_pending = nil
 local MUTE_SONG_ID = 0
 
 -- Packet injection ---------------------------------------------------------
@@ -684,32 +684,65 @@ ashita.events.register('packet_in', 'setbgm_packet_in', function(e)
             elseif cfg.reapply and chosen ~= nil and chosen ~= -1 and song ~= chosen then
                 play_song = chosen
             end
+            -- The server packet is the music change the client will play. Rewrite its song ID
+            -- directly so the original song never starts and a second packet cannot restart playback.
             if play_song ~= nil then
-                -- Block the server's original packet and inject the selected/replacement song next frame.
-                e.blocked = true
-                pending[t], pending_song[t] = os.clock(), play_song
-                if debug_log then
-                    print(('[setbgm] replacing incoming song %d with %d (type %d)'):format(song, play_song, t))
+                if play_song ~= song then
+                    local packet = ffi.cast('uint8_t*', e.data_modified_raw)
+                    packet[6] = play_song % 256
+                    packet[7] = math.floor(play_song / 256)
+                    if debug_log then
+                        print(('[setbgm] rewrote incoming song %d to %d (type %d)'):format(song, play_song, t))
+                    end
                 end
+                -- A rewritten server packet makes the delayed zone-entry fallback unnecessary.
+                pending[t], pending_song[t] = nil, nil
             end
         end
     elseif e.id == 0x00A and not e.injected then
-        -- zoned: forget old defaults (the server sends new ones) and re-apply our choices after a delay
-        if debug_log then print('[setbgm] zone-in packet; cleared cached defaults') end
+        -- The login/zone packet carries the zone's default music IDs. Replace them before
+        -- the client loads the zone so it never starts the original track.
+        if debug_log then print('[setbgm] zone-in packet; applying saved music choices') end
         server_song = {}
         current_zone_theme = nil
         pending, pending_song = {}, {}
+
         local zone = e.data:byte(0x31) + e.data:byte(0x32) * 256
-        zone_replacer_pending = zone
-        local has_zone_override = zone_override_for(zone) ~= nil
-        if cfg.reapply then
-            for _, t in ipairs(managed_packet_types) do
-                local zone_music_selected = has_zone_override and (t == 0 or t == 1)
-                if cfg.chosen[t + 1] ~= -1 and not zone_music_selected then
-                    pending[t] = os.clock() + 3.0
+        local zone_override = zone_override_for(zone)
+        local packet = ffi.cast('uint8_t*', e.data_modified_raw)
+        local zone_theme = nil
+
+        -- MusicNum[5] starts at packet offset 0x56: day, night, solo battle,
+        -- party battle, and mount.
+        for t = 0, 4 do
+            local offset = 0x56 + (t * 2)
+            local original = packet[offset] + packet[offset + 1] * 256
+            server_song[t] = original
+
+            local song = original
+            local chosen = cfg.chosen[t + 1]
+            local replacement = replacement_for(original)
+            if t < 2 and zone_override ~= nil then
+                song = replacement_for(zone_override)
+            elseif replacement ~= original then
+                song = replacement
+            elseif cfg.reapply and chosen ~= nil and chosen ~= -1 then
+                song = chosen
+            end
+
+            if song ~= original then
+                packet[offset] = song % 256
+                packet[offset + 1] = math.floor(song / 256)
+                if debug_log then
+                    print(('[setbgm] zone-in music slot %d: %d -> %d'):format(t, original, song))
                 end
             end
+
+            if (t == 0 or t == 1) and song ~= 0 and zone_theme == nil then
+                zone_theme = song
+            end
         end
+        current_zone_theme = zone_theme
     end
 end)
 
@@ -722,17 +755,6 @@ ashita.events.register('d3d_present', 'setbgm_present', function()
             local song = pending_song[t] or cfg.chosen[t + 1]
             pending_song[t] = nil
             if song ~= -1 then set_music(t, song) end
-        end
-    end
-
-    if zone_replacer_pending ~= nil then
-        local zone = zone_replacer_pending
-        zone_replacer_pending = nil
-        if zonemusic[zone] ~= nil then
-            apply_zone_override(zone)
-            apply_zone_replacements(zone, false)
-        elseif debug_log then
-            print(('[setbgm] no zone music row found for zone %s'):format(tostring(zone)))
         end
     end
 
